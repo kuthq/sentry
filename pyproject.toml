@@ -515,7 +515,7 @@ module = [
     "sentry.tsdb.dummy",
     "sentry.tsdb.inmemory",
     "sentry.tsdb.redis",
-"sentry.tsdb.snuba",
+    "sentry.tsdb.snuba",
     "sentry.types.integrations",
     "sentry.utils.audit",
     "sentry.utils.auth",
@@ -649,6 +649,6 @@ module = [
     "src.sentry.relay.config.metric_extraction",
     "src.sentry.snuba.metrics.extraction",
     "tests.sentry.relay.config.test_metric_extraction",
-    ]
+]
 disallow_untyped_defs = true
 # end: stronger typing
