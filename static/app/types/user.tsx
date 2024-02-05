@@ -72,7 +72,7 @@ interface BaseApiToken {
   dateCreated: string;
   expiresAt: string;
   id: string;
-  name: string;
+  name?: string | null;
   scopes: Scope[];
   state: string;
 }
