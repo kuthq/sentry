@@ -72,9 +72,9 @@ interface BaseApiToken {
   dateCreated: string;
   expiresAt: string;
   id: string;
-  name?: string | null;
   scopes: Scope[];
   state: string;
+  name?: string | null;
 }
 
 // API Tokens should not be using and storing the token values in the application, as the tokens are secrets.
