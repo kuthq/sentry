@@ -1376,7 +1376,6 @@ def assign_event_to_group(event: Event, job: Job, metric_tags: MutableTags) -> G
         group_info = _save_aggregate_new(
             event=event,
             job=job,
-            release=job["release"],
             metric_tags=metric_tags,
         )
     else:
@@ -1636,7 +1635,6 @@ def _save_aggregate(
 def _save_aggregate_new(
     event: Event,
     job: Job,
-    release: Release | None,
     metric_tags: MutableTags,
 ) -> GroupInfo | None:
     project = event.project
@@ -1742,7 +1740,7 @@ def _save_aggregate_new(
         group=group,
         event=event,
         incoming_group_values=group_processing_kwargs,
-        release=release,
+        release=job["release"],
     )
 
     return GroupInfo(group, is_new, is_regression)
