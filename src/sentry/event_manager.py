@@ -926,6 +926,43 @@ def _get_group_creation_kwargs(job: Job | PerformanceJob) -> dict[str, Any]:
     return kwargs
 
 
+def _get_group_processing_kwargs(job: Job) -> dict[str, Any]:
+    """
+    Pull together all the metadata used when creating a group or updating a group's metadata based
+    on a new event.
+    """
+    _materialize_metadata_many([job])
+
+    event_data = job["event"].data
+    event_metadata = job["event_metadata"]
+
+    group_metadata = materialize_metadata(
+        event_data,
+        # In principle the group gets the same metadata as the event, so common
+        # attributes can be defined in eventtypes.
+        get_event_type(event_data),
+        event_metadata,
+    )
+    group_metadata["last_received"] = job["received_timestamp"]
+
+    kwargs = {
+        "data": group_metadata,
+        "platform": job["platform"],
+        "message": job["event"].search_message,
+        "logger": job["logger_name"],
+        "level": LOG_LEVELS_MAP.get(job["level"]),
+        "last_seen": job["event"].datetime,
+        "first_seen": job["event"].datetime,
+        "active_at": job["event"].datetime,
+        "culprit": job["culprit"],
+    }
+
+    if job["release"]:
+        kwargs["first_release"] = job["release"]
+
+    return kwargs
+
+
 @metrics.wraps("save_event.get_or_create_environment_many")
 def _get_or_create_environment_many(jobs: Sequence[Job], projects: ProjectsMapping) -> None:
     for job in jobs:
@@ -1337,7 +1374,6 @@ def assign_event_to_group(event: Event, job: Job, metric_tags: MutableTags) -> G
             event=event,
             job=job,
             release=job["release"],
-            received_timestamp=job["received_timestamp"],
             metric_tags=metric_tags,
         )
     else:
@@ -1598,10 +1634,11 @@ def _save_aggregate_new(
     event: Event,
     job: Job,
     release: Release | None,
-    received_timestamp: int | float,
     metric_tags: MutableTags,
 ) -> GroupInfo | None:
     project = event.project
+
+    group_processing_kwargs = _get_group_processing_kwargs(job)
 
     _, _, hashes = get_hash_values(project, job, metric_tags)
 
@@ -1611,28 +1648,11 @@ def _save_aggregate_new(
     # erroneously create new groups.
     update_grouping_config_if_needed(project)
 
-    _materialize_metadata_many([job])
-    metadata = dict(job["event_metadata"])
-
-    group_creation_kwargs = _get_group_creation_kwargs(job)
-
     grouphashes = [
         GroupHash.objects.get_or_create(project=project, hash=hash)[0] for hash in hashes.hashes
     ]
 
     existing_grouphash = find_existing_grouphash_new(grouphashes)
-
-    # In principle the group gets the same metadata as the event, so common
-    # attributes can be defined in eventtypes.
-    #
-    # Additionally the `last_received` key is set for group metadata, later in
-    # _save_aggregate
-    group_creation_kwargs["data"] = materialize_metadata(
-        event.data,
-        get_event_type(event.data),
-        metadata,
-    )
-    group_creation_kwargs["data"]["last_received"] = received_timestamp
 
     if existing_grouphash is None:
         if killswitch_matches_context(
@@ -1663,7 +1683,7 @@ def _save_aggregate_new(
             existing_grouphash = find_existing_grouphash_new(grouphashes)
 
             if existing_grouphash is None:
-                group = _create_group(project, event, **group_creation_kwargs)
+                group = _create_group(project, event, **group_processing_kwargs)
 
                 if (
                     features.has("projects:first-event-severity-calculation", event.project)
@@ -1740,7 +1760,7 @@ def _save_aggregate_new(
     is_regression = _process_existing_aggregate(
         group=group,
         event=event,
-        incoming_group_values=group_creation_kwargs,
+        incoming_group_values=group_processing_kwargs,
         release=release,
     )
 
