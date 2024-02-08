@@ -17,6 +17,7 @@ from sentry.grouping.ingest import (
 from sentry.models.grouphash import GroupHash
 from sentry.models.project import Project
 from sentry.testutils.helpers.eventprocessing import save_new_event
+from sentry.testutils.helpers.features import Feature
 from sentry.testutils.pytest.fixtures import django_db_all
 from sentry.testutils.pytest.mocking import capture_return_values
 from sentry.testutils.skips import requires_snuba
@@ -121,6 +122,7 @@ def get_results_from_saving_event(
     secondary_config: str,
     in_transition: bool,
     existing_group_id: int | None = None,
+    new_logic_enabled: bool = False,
 ):
     # Slightly gross (and with even grosser auto-formatting), but it saves having to do a bunch of
     # `x if y else None` below
@@ -138,7 +140,10 @@ def get_results_from_saving_event(
 
     return_values: dict[str, list[Any]] = {}
 
-    with patch_grouping_helpers(return_values) as spies:
+    with (
+        patch_grouping_helpers(return_values) as spies,
+        Feature({"organizations:grouping-suppress-unnecessary-secondary-hash": new_logic_enabled}),
+    ):
         calculate_secondary_hash_spy = spies["_calculate_secondary_hash"]
         create_group_spy = spies["_create_group"]
         calculate_primary_hash_spy = spies["_calculate_primary_hash"]
@@ -227,7 +232,13 @@ def get_results_from_saving_event(
 @pytest.mark.parametrize(
     "in_transition", (True, False), ids=(" in_transition: True ", " in_transition: False ")
 )
+@pytest.mark.parametrize(
+    "new_logic_enabled",
+    (True, False),
+    ids=(" new_logic_enabled: True ", " new_logic_enabled: False "),
+)
 def test_new_group(
+    new_logic_enabled: bool,
     in_transition: bool,
     default_project: Project,
 ):
@@ -240,6 +251,7 @@ def test_new_group(
         primary_config=NEWSTYLE_CONFIG,
         secondary_config=LEGACY_CONFIG,
         in_transition=in_transition,
+        new_logic_enabled=new_logic_enabled,
     )
 
     if in_transition:
@@ -279,7 +291,13 @@ def test_new_group(
 @pytest.mark.parametrize(
     "in_transition", (True, False), ids=(" in_transition: True ", " in_transition: False ")
 )
+@pytest.mark.parametrize(
+    "new_logic_enabled",
+    (True, False),
+    ids=(" new_logic_enabled: True ", " new_logic_enabled: False "),
+)
 def test_existing_group_no_new_hash(
+    new_logic_enabled: bool,
     in_transition: bool,
     default_project: Project,
 ):
@@ -297,6 +315,7 @@ def test_existing_group_no_new_hash(
         secondary_config=LEGACY_CONFIG,
         in_transition=in_transition,
         existing_group_id=existing_event.group_id,
+        new_logic_enabled=new_logic_enabled,
     )
 
     if in_transition:
@@ -335,12 +354,18 @@ def test_existing_group_no_new_hash(
     "in_transition", (True, False), ids=(" in_transition: True ", " in_transition: False ")
 )
 @pytest.mark.parametrize(
+    "new_logic_enabled",
+    (True, False),
+    ids=(" new_logic_enabled: True ", " new_logic_enabled: False "),
+)
+@pytest.mark.parametrize(
     "secondary_hash_exists",
     (True, False),
     ids=(" secondary_hash_exists: True ", " secondary_hash_exists: False "),
 )
 def test_existing_group_new_hash_exists(
     secondary_hash_exists: bool,
+    new_logic_enabled: bool,
     in_transition: bool,
     default_project: Project,
 ):
@@ -375,6 +400,7 @@ def test_existing_group_new_hash_exists(
         secondary_config=LEGACY_CONFIG,
         in_transition=in_transition,
         existing_group_id=existing_event.group_id,
+        new_logic_enabled=new_logic_enabled,
     )
 
     if in_transition:
