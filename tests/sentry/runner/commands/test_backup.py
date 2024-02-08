@@ -34,7 +34,7 @@ from sentry.testutils.helpers.backups import (
     clear_database,
     generate_rsa_key_pair,
 )
-from sentry.testutils.silo import assume_test_silo_mode, region_silo_test
+from sentry.testutils.silo import assume_test_silo_mode, assume_test_silo_mode_of, region_silo_test
 from sentry.utils import json
 
 GOOD_FILE_PATH = get_fixture_path("backup", "fresh-install.json")
@@ -604,7 +604,8 @@ class GoodGlobalImportConfirmDialogTests(TransactionTestCase):
     def test_confirm_yes(self):
         output = self.cli_import_with_confirmation_input("y\n")
         assert "Import cancelled" not in output
-        assert Email.objects.count() > 0
+        with assume_test_silo_mode_of(Email):
+            assert Email.objects.count() > 0
 
     @pytest.mark.skipif(
         os.environ.get("SENTRY_USE_MONOLITH_DBS", "0") == "0",

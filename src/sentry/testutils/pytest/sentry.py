@@ -50,7 +50,10 @@ def configure_split_db() -> None:
     settings.DATABASE_ROUTERS = ("sentry.db.router.SiloRouter",)
 
 
-DEFAULT_SILO_MODE_FOR_TEST_CASES = SiloMode.MONOLITH
+SENTRY_USE_MONOLITH_DBS = os.environ.get("SENTRY_USE_MONOLITH_DBS", "0") == "1"
+DEFAULT_SILO_MODE_FOR_TEST_CASES = (
+    SiloMode.REGION if not SENTRY_USE_MONOLITH_DBS else SiloMode.MONOLITH
+)
 
 
 def _configure_test_env_regions() -> None:
