@@ -72,6 +72,13 @@ SUPPORTED_COMMIT_PROVIDERS = (
     "bitbucket",
     "integrations:bitbucket",
 )
+SUPPORTED_CONTEXT_DATA = {
+    "Events": lambda group: get_group_global_count(group),
+    "Users Affected": lambda group: group.count_users_seen(),
+    "State": lambda group: SUBSTATUS_TO_STR.get(group.substatus, "").replace("_", " ").title(),
+    "First Seen": lambda group: time_since(group.first_seen),
+    "Regressed Date": lambda group: time_since(group.active_at),
+}
 
 REGRESSION_PERFORMANCE_ISSUE_TYPES = [
     PerformanceP95EndpointRegressionGroupType,
@@ -224,20 +231,16 @@ def get_tags(
 
 def get_context(group: Group) -> str:
     context_text = ""
-    context = {
-        "Events": get_group_global_count(group),
-        "Users Affected": group.count_users_seen(),
-        "State": SUBSTATUS_TO_STR.get(group.substatus, "").replace("_", " ").title(),
-        "First Seen": time_since(group.first_seen),
-    }
-    if group.issue_type in REGRESSION_PERFORMANCE_ISSUE_TYPES:
-        # another short term solution for non-error issues notification content
-        return context_text
+    context = group.issue_type.notification_config.context
 
-    if group.issue_category in [GroupCategory.ERROR, GroupCategory.PERFORMANCE]:
-        for k, v in context.items():
-            if k and v:
-                context_text += f"{k}: *{v}*   "
+    context_dict = {}
+    for c in context:
+        if c in SUPPORTED_CONTEXT_DATA:
+            context_dict[c] = SUPPORTED_CONTEXT_DATA[c](group)
+
+    for k, v in context_dict.items():
+        if k and v:
+            context_text += f"{k}: *{v}*   "
     return context_text
 
 
@@ -475,9 +478,11 @@ def build_actions(
             label="Select Assignee...",
             type="select",
             selected_options=format_actor_options([assignee]) if assignee else [],
-            option_groups=get_option_groups(group)
-            if not use_block_kit
-            else get_option_groups_block_kit(group),
+            option_groups=(
+                get_option_groups(group)
+                if not use_block_kit
+                else get_option_groups_block_kit(group)
+            ),
         )
         return assign_button
 
