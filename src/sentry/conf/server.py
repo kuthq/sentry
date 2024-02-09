@@ -127,6 +127,7 @@ SENTRY_MONITORS_REDIS_CLUSTER = "default"
 SENTRY_STATISTICAL_DETECTORS_REDIS_CLUSTER = "default"
 SENTRY_METRIC_META_REDIS_CLUSTER = "default"
 SENTRY_ESCALATION_THRESHOLDS_REDIS_CLUSTER = "default"
+SENTRY_SPAN_BUFFER_CLUSTER = "default"
 
 # Hosts that are allowed to use system token authentication.
 # http://en.wikipedia.org/wiki/Reserved_IP_addresses
@@ -764,6 +765,7 @@ CELERY_IMPORTS = (
     "sentry.tasks.reprocessing2",
     "sentry.tasks.sentry_apps",
     "sentry.tasks.servicehooks",
+    "sentry.tasks.spans",
     "sentry.tasks.store",
     "sentry.tasks.symbolication",
     "sentry.tasks.unmerge",
@@ -925,6 +927,7 @@ CELERY_QUEUES_REGION = [
     Queue("nudge.invite_missing_org_members", routing_key="invite_missing_org_members"),
     Queue("auto_resolve_issues", routing_key="auto_resolve_issues"),
     Queue("on_demand_metrics", routing_key="on_demand_metrics"),
+    Queue("spans.process_segment", routing_key="spans.process_segment"),
 ]
 
 from celery.schedules import crontab
@@ -1624,8 +1627,6 @@ SENTRY_FEATURES: dict[str, bool | None] = {
     "organizations:issue-search-use-cdc-secondary": False,
     # Enable issue stream performance improvements
     "organizations:issue-stream-performance": False,
-    # Enable issue similarity embeddings
-    "organizations:issues-similarity-embeddings": False,
     # Enable the trace timeline on issue details
     "organizations:issues-trace-timeline": False,
     # Enabled latest adopted release filter for issue alerts
@@ -1676,6 +1677,8 @@ SENTRY_FEATURES: dict[str, bool | None] = {
     "organizations:on-demand-metrics-prefill": False,
     # Display on demand metrics related UI elements
     "organizations:on-demand-metrics-ui": False,
+    # Display on demand metrics related UI elements, for dashboards and widgets. The other flag is for alerts.
+    "organizations:on-demand-metrics-ui-widgets": False,
     # This spec version includes the environment in the query hash
     "organizations:on-demand-metrics-query-spec-version-two": False,
     # Enable the SDK selection feature in the onboarding
@@ -1785,8 +1788,6 @@ SENTRY_FEATURES: dict[str, bool | None] = {
     "organizations:profiling-global-suspect-functions": False,
     # Enable profiling Memory chart
     "organizations:profiling-memory-chart": False,
-    # Enable stacktrace linking of multiple frames in profiles
-    "organizations:profiling-stacktrace-links": False,
     # Enable profiling statistical detectors breakpoint detection
     "organizations:profiling-statistical-detectors-breakpoint": False,
     # Enable profiling statistical detectors ema detection
@@ -1869,6 +1870,8 @@ SENTRY_FEATURES: dict[str, bool | None] = {
     "organizations:session-replay-weekly-email": False,
     # Lets organizations manage grouping configs
     "organizations:set-grouping-config": False,
+    # Enable the UI for updated terms of service
+    "organizations:settings-legal-tos-ui": False,
     # Enable the UI for the overage alert settings
     "organizations:slack-overage-notifications": False,
     # Enable source maps debugger
@@ -2746,6 +2749,9 @@ SENTRY_USE_PROFILING = False
 # This flag activates indexed spans backend in the development environment
 SENTRY_USE_SPANS = False
 
+# This flag activates spans consumer in the sentry backend in development environment
+SENTRY_USE_SPANS_BUFFER = False
+
 # This flag activates consuming issue platform occurrence data in the development environment
 SENTRY_USE_ISSUE_OCCURRENCE = False
 
@@ -3046,7 +3052,7 @@ STATUS_PAGE_API_HOST = "statuspage.io"
 SENTRY_SELF_HOSTED = True
 # only referenced in getsentry to provide the stable beacon version
 # updated with scripts/bump-version.sh
-SELF_HOSTED_STABLE_VERSION = "24.1.1"
+SELF_HOSTED_STABLE_VERSION = "24.1.2"
 
 # Whether we should look at X-Forwarded-For header or not
 # when checking REMOTE_ADDR ip addresses
