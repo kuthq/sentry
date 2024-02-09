@@ -1,4 +1,5 @@
 import logging
+import random
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from time import time
@@ -76,7 +77,8 @@ def submit_process(
 ) -> None:
     if from_reprocessing:
         task = process_event_from_reprocessing
-    elif is_proguard:
+    elif is_proguard and random.random() < options.get("store.separate-proguard-queue-rate"):
+        # route *some* proguard events to a separate queue
         task = process_event_proguard
     else:
         task = process_event
