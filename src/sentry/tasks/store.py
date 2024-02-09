@@ -17,7 +17,6 @@ from sentry.eventstore import processing
 from sentry.eventstore.processing.base import Event
 from sentry.feedback.usecases.create_feedback import FeedbackCreationSource, create_feedback_issue
 from sentry.killswitches import killswitch_matches_context
-from sentry.lang.java.utils import has_proguard_file
 from sentry.lang.native.symbolicator import SymbolicatorTaskKind
 from sentry.models.activity import Activity
 from sentry.models.options.project_option import ProjectOption
@@ -138,6 +137,7 @@ def _do_preprocess_event(
     project: Project | None,
     has_attachments: bool = False,
 ) -> None:
+    from sentry.lang.java.utils import has_proguard_file
     from sentry.tasks.symbolication import (
         get_symbolication_function,
         should_demote_symbolication,
