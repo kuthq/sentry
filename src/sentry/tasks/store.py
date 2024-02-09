@@ -541,8 +541,6 @@ def process_event_proguard(
     """
     Handles event processing (for those events that need it)
 
-    This excludes symbolication via symbolicator service (see symbolicate_event).
-
     :param string cache_key: the cache key for the event data
     :param int start_time: the timestamp when the event was ingested
     :param string event_id: the event identifier
