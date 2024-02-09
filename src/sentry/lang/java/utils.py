@@ -27,7 +27,7 @@ def has_proguard_file(data):
     """
     Checks whether an event contains a proguard file
     """
-    images = get_path(data, "debug_meta", "images", filter=True)
+    images = get_path(data, "debug_meta", "images", filter=True, default=())
     return any(map(is_valid_proguard_image, images))
 
 
